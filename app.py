@@ -9,45 +9,49 @@ import matplotlib.pyplot as plt
 from feature_extraction import extract_features
 
 st.set_page_config(page_title="VocalGuard", layout="centered")
-IS_CLOUD = os.environ.get("STREAMLIT_SERVER_PORT") is not None
 st.title("VocalGuard")
 st.subheader("Live Voice Recording")
 baseline_dir = "data/baseline"
 baseline_mean, baseline_std = compute_baseline(baseline_dir)
 
-st.subheader("Voice Input")
+audio = audiorecorder(
+    "Start Recording",
+    "Stop Recording",
+    key="live_audio_recorder"
+)
 
-if IS_CLOUD:
-    st.info("Live recording is disabled on the web. Please upload a WAV file.")
+if len(audio) > 0:
+    st.success("Recording captured")
 
-    uploaded_file = st.file_uploader("Upload speech sample (.wav)", type=["wav"])
+    # Convert AudioSegment to numpy array
+    samples = np.array(audio.get_array_of_samples()).astype(np.float32)
 
-    if uploaded_file is not None:
-        live_path = "data/live/uploaded.wav"
-        with open(live_path, "wb") as f:
-            f.write(uploaded_file.read())
+    # Normalize to [-1, 1]
+    samples /= np.max(np.abs(samples))
 
-        st.audio(live_path)
+    live_path = "data/live/live_recording.wav"
+    sf.write(live_path, samples, audio.frame_rate)
 
-        if st.button("Analyze Uploaded Audio"):
-            live_features = extract_features(live_path)
-            deviation_score, z_scores = compute_deviation(
-                live_features, baseline_mean, baseline_std
-            )
-            st.metric("Deviation Score", round(deviation_score, 2))
-
-else:
-    st.success("Live recording available in local deployment only.")
+    st.audio(live_path)
 
 
-    if deviation_score < 1:
+    if st.button("Analyze Live Recording", key="analyze_live"):
+        live_features = extract_features(live_path)
+        live_vector = np.array(list(live_features.values()))
+
+        deviation_score, z_scores = compute_deviation(live_features, baseline_mean, baseline_std)
+
+        st.subheader("Live Recording Result")
+        st.metric("Deviation Score", round(deviation_score, 2))
+
+        if deviation_score < 1:
             st.success("Clinical Indicator: Normal speech pattern")
-    elif deviation_score < 2:
+        elif deviation_score < 2:
             st.warning("Clinical Indicator: Mild speech deviation")
-    else:
+        else:
             st.error("Clinical Indicator: Significant speech deviation")
 
-    st.caption(
+        st.caption(
             "This output reflects speech deviation only and does not provide a medical diagnosis."
         )
 
