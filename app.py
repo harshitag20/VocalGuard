@@ -10,7 +10,7 @@ from feature_extraction import extract_features
 
 st.set_page_config(page_title="VocalGuard", layout="centered")
 st.title("VocalGuard")
-st.subheader("Live Voice Recording")
+st.subheader("Live Voice Recording(Live recording available in local deployment only)")
 baseline_dir = "data/baseline"
 baseline_mean, baseline_std = compute_baseline(baseline_dir)
 
